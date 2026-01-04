@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-tachometer-alt"></i> Dashboard Guru</h2>
+        <p class="text-muted">Selamat datang, {{ guru.nama }}</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Status Kehadiran -->
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if kehadiran_hari_ini %}
+                    {% if kehadiran_hari_ini.jam_keluar %}
+                        <i class="fas fa-check-circle fa-3x text-success mb-2"></i>
+                        <h5>Sudah Absen</h5>
+                        <p class="small">
+                            Masuk: {{ kehadiran_hari_ini.jam_masuk.strftime('%H:%M') }}<br>
+                            Keluar: {{ kehadiran_hari_ini.jam_keluar.strftime('%H:%M') }}
+                        </p>
+                    {% else %}
+                        <i class="fas fa-clock fa-3x text-warning mb-2"></i>
+                        <h5>Sudah Masuk</h5>
+                        <p class="small">
+                            Masuk: {{ kehadiran_hari_ini.jam_masuk.strftime('%H:%M') }}<br>
+                            <em>Belum absen keluar</em>
+                        </p>
+                    {% endif %}
+                {% else %}
+                    <i class="fas fa-times-circle fa-3x text-danger mb-2"></i>
+                    <h5>Belum Absen</h5>
+                    <p class="small">Silakan scan barcode untuk absen masuk</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Guru -->
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5><i class="fas fa-qrcode"></i> QR Code Anda</h5>
+                {% if guru.qr_code %}
+                    <img src="data:image/png;base64,{{ guru.qr_code }}" class="qr-code img-fluid" alt="QR Code">
+                {% else %}
+                    <p class="text-muted">QR Code belum dibuat</p>
+                    <button class="btn btn-primary btn-sm" onclick="generateQR()">Buat QR Code</button>
+                {% endif %}
+                <p class="small mt-2">Gunakan untuk absensi</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Mengajar -->
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if jadwal_sekarang %}
+                    <i class="fas fa-chalkboard-teacher fa-3x text-info mb-2"></i>
+                    <h5>Sedang Mengajar</h5>
+                    <p class="small">
+                        {{ jadwal_sekarang.mata_pelajaran }}<br>
+                        Kelas {{ jadwal_sekarang.kelas }}<br>
+                        {{ jadwal_sekarang.jam_mulai.strftime('%H:%M') }} - {{ jadwal_sekarang.jam_selesai.strftime('%H:%M') }}
+                    </p>
+                {% else %}
+                    <i class="fas fa-coffee fa-3x text-secondary mb-2"></i>
+                    <h5>Tidak Mengajar</h5>
+                    <p class="small">Tidak ada jadwal mengajar saat ini</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Menu Utama -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5><i class="fas fa-book"></i> Jurnal Pembelajaran</h5>
+            </div>
+            <div class="card-body">
+                <p>Catat materi dan aktivitas pembelajaran hari ini</p>
+                <a href="#" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#jurnalModal">
+                    <i class="fas fa-plus"></i> Buat Jurnal
+                </a>
+                <a href="#" class="btn btn-outline-success">
+                    <i class="fas fa-list"></i> Lihat Riwayat
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-warning text-white">
+                <h5><i class="fas fa-tasks"></i> Manajemen Tugas</h5>
+            </div>
+            <div class="card-body">
+                <p>Kelola tugas yang diberikan kepada siswa</p>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Tugas Aktif:</span>
+                    <span class="badge bg-warning">{{ tugas_aktif }}</span>
+                </div>
+                <a href="#" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#tugasModal">
+                    <i class="fas fa-plus"></i> Buat Tugas
+                </a>
+                <a href="#" class="btn btn-outline-warning">
+                    <i class="fas fa-list"></i> Kelola Tugas
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Jurnal -->
+<div class="modal fade" id="jurnalModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Buat Jurnal Pembelajaran</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="jurnalForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tanggal</label>
+                            <input type="date" class="form-control" name="tanggal" value="{{ today }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Kelas</label>
+                            <select class="form-select" name="kelas" required>
+                                <option value="">Pilih Kelas</option>
+                                <option value="X-1">X-1</option>
+                                <option value="X-2">X-2</option>
+                                <option value="XI-1">XI-1</option>
+                                <option value="XI-2">XI-2</option>
+                                <option value="XII-1">XII-1</option>
+                                <option value="XII-2">XII-2</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mata Pelajaran</label>
+                        <input type="text" class="form-control" name="mata_pelajaran" value="{{ guru.mata_pelajaran }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Materi Pembelajaran</label>
+                        <textarea class="form-control" name="materi" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Metode Pembelajaran</label>
+                        <input type="text" class="form-control" name="metode_pembelajaran" placeholder="Ceramah, Diskusi, Praktikum, dll">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Siswa Hadir</label>
+                            <input type="number" class="form-control" name="siswa_hadir" min="0" value="0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Siswa Tidak Hadir</label>
+                            <input type="number" class="form-control" name="siswa_tidak_hadir" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Catatan</label>
+                        <textarea class="form-control" name="catatan" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success">Simpan Jurnal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tugas -->
+<div class="modal fade" id="tugasModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Buat Tugas Baru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="tugasForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Judul Tugas</label>
+                        <input type="text" class="form-control" name="judul" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Deskripsi Tugas</label>
+                        <textarea class="form-control" name="deskripsi" rows="4" required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Kelas</label>
+                            <select class="form-select" name="kelas" required>
+                                <option value="">Pilih Kelas</option>
+                                <option value="X-1">X-1</option>
+                                <option value="X-2">X-2</option>
+                                <option value="XI-1">XI-1</option>
+                                <option value="XI-2">XI-2</option>
+                                <option value="XII-1">XII-1</option>
+                                <option value="XII-2">XII-2</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Mata Pelajaran</label>
+                            <input type="text" class="form-control" name="mata_pelajaran" value="{{ guru.mata_pelajaran }}" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tanggal Diberikan</label>
+                            <input type="date" class="form-control" name="tanggal_diberikan" value="{{ today }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Deadline</label>
+                            <input type="date" class="form-control" name="deadline" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning">Simpan Tugas</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function generateQR() {
+    fetch('/api/generate-qr', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Gagal membuat QR Code');
+        }
+    });
+}
+
+// Handle form submissions
+document.getElementById('jurnalForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Add AJAX submission logic here
+    alert('Fitur jurnal akan segera tersedia');
+});
+
+document.getElementById('tugasForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Add AJAX submission logic here
+    alert('Fitur tugas akan segera tersedia');
+});
+</script>
+{% endblock %}
