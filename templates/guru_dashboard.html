@@ -260,14 +260,60 @@ function generateQR() {
 // Handle form submissions
 document.getElementById('jurnalForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    // Add AJAX submission logic here
-    alert('Fitur jurnal akan segera tersedia');
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    
+    fetch('/api/submit-jurnal', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Jurnal pembelajaran berhasil disimpan!');
+            bootstrap.Modal.getInstance(document.getElementById('jurnalModal')).hide();
+            this.reset();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Terjadi kesalahan: ' + error);
+    });
 });
 
 document.getElementById('tugasForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    // Add AJAX submission logic here
-    alert('Fitur tugas akan segera tersedia');
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    
+    fetch('/api/submit-tugas', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Tugas berhasil disimpan!');
+            bootstrap.Modal.getInstance(document.getElementById('tugasModal')).hide();
+            this.reset();
+            // Update counter tugas aktif
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Terjadi kesalahan: ' + error);
+    });
 });
 </script>
 {% endblock %}
