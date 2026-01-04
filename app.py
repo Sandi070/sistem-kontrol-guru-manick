@@ -412,6 +412,144 @@ def check_notifications():
     
     return jsonify({'notifications': notifications})
 
+# API untuk monitoring jurnal pembelajaran (admin only)
+@app.route('/api/monitoring-jurnal')
+def monitoring_jurnal():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    # Query jurnal hari ini dengan join ke tabel guru
+    jurnal_list = db.session.query(JurnalPembelajaran, Guru).join(Guru).filter(
+        JurnalPembelajaran.tanggal == datetime.now().date()
+    ).order_by(JurnalPembelajaran.created_at.desc()).all()
+    
+    data = []
+    for jurnal, guru in jurnal_list:
+        data.append({
+            'id': jurnal.id,
+            'guru_nama': guru.nama,
+            'guru_nip': guru.nip,
+            'kelas': jurnal.kelas,
+            'mata_pelajaran': jurnal.mata_pelajaran,
+            'materi': jurnal.materi,
+            'metode_pembelajaran': jurnal.metode_pembelajaran,
+            'siswa_hadir': jurnal.siswa_hadir,
+            'siswa_tidak_hadir': jurnal.siswa_tidak_hadir,
+            'catatan': jurnal.catatan,
+            'waktu_input': jurnal.created_at.strftime('%H:%M')
+        })
+    
+    return jsonify({'success': True, 'data': data})
+
+# API untuk monitoring tugas (admin only)
+@app.route('/api/monitoring-tugas')
+def monitoring_tugas():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    # Query tugas aktif dengan join ke tabel guru
+    tugas_list = db.session.query(Tugas, Guru).join(Guru).filter(
+        Tugas.status == 'aktif'
+    ).order_by(Tugas.created_at.desc()).all()
+    
+    data = []
+    for tugas, guru in tugas_list:
+        # Hitung sisa hari deadline
+        sisa_hari = (tugas.deadline - datetime.now().date()).days
+        status_deadline = 'normal'
+        if sisa_hari < 0:
+            status_deadline = 'overdue'
+        elif sisa_hari <= 2:
+            status_deadline = 'urgent'
+        
+        data.append({
+            'id': tugas.id,
+            'guru_nama': guru.nama,
+            'guru_nip': guru.nip,
+            'judul': tugas.judul,
+            'deskripsi': tugas.deskripsi,
+            'kelas': tugas.kelas,
+            'mata_pelajaran': tugas.mata_pelajaran,
+            'tanggal_diberikan': tugas.tanggal_diberikan.strftime('%Y-%m-%d'),
+            'deadline': tugas.deadline.strftime('%Y-%m-%d'),
+            'sisa_hari': sisa_hari,
+            'status_deadline': status_deadline,
+            'waktu_dibuat': tugas.created_at.strftime('%Y-%m-%d %H:%M')
+        })
+    
+    return jsonify({'success': True, 'data': data})
+
+# API untuk submit jurnal pembelajaran (guru)
+@app.route('/api/submit-jurnal', methods=['POST'])
+def submit_jurnal():
+    if 'user_id' not in session or session.get('user_role') != 'guru':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    data = request.get_json()
+    
+    # Validasi data
+    required_fields = ['tanggal', 'kelas', 'mata_pelajaran', 'materi']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'success': False, 'message': f'{field} harus diisi'})
+    
+    try:
+        # Buat jurnal baru
+        jurnal = JurnalPembelajaran(
+            guru_id=session['user_id'],
+            tanggal=datetime.strptime(data['tanggal'], '%Y-%m-%d').date(),
+            kelas=data['kelas'],
+            mata_pelajaran=data['mata_pelajaran'],
+            materi=data['materi'],
+            metode_pembelajaran=data.get('metode_pembelajaran', ''),
+            siswa_hadir=int(data.get('siswa_hadir', 0)),
+            siswa_tidak_hadir=int(data.get('siswa_tidak_hadir', 0)),
+            catatan=data.get('catatan', '')
+        )
+        
+        db.session.add(jurnal)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Jurnal berhasil disimpan'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+# API untuk submit tugas (guru)
+@app.route('/api/submit-tugas', methods=['POST'])
+def submit_tugas():
+    if 'user_id' not in session or session.get('user_role') != 'guru':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    data = request.get_json()
+    
+    # Validasi data
+    required_fields = ['judul', 'deskripsi', 'kelas', 'mata_pelajaran', 'tanggal_diberikan', 'deadline']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'success': False, 'message': f'{field} harus diisi'})
+    
+    try:
+        # Buat tugas baru
+        tugas = Tugas(
+            guru_id=session['user_id'],
+            judul=data['judul'],
+            deskripsi=data['deskripsi'],
+            kelas=data['kelas'],
+            mata_pelajaran=data['mata_pelajaran'],
+            tanggal_diberikan=datetime.strptime(data['tanggal_diberikan'], '%Y-%m-%d').date(),
+            deadline=datetime.strptime(data['deadline'], '%Y-%m-%d').date(),
+            status='aktif'
+        )
+        
+        db.session.add(tugas)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Tugas berhasil disimpan'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
 # Route untuk menambah jadwal mengajar (admin)
 @app.route('/admin/jadwal', methods=['GET', 'POST'])
 def kelola_jadwal():
