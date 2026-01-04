@@ -1,21 +1,22 @@
 @echo off
-echo 🔧 Deploying Fixed Application
-echo ===============================
+echo 🆕 Deploying New Features - MAN IC Kendari
+echo ==========================================
 
-echo 📝 Perbaikan yang sudah dilakukan:
-echo ✅ Fix Jinja2 moment error
-echo ✅ Tambah API daftar guru  
-echo ✅ Update JavaScript admin dashboard
-echo ✅ Tambah sample data guru
-echo ✅ Fix form handlers
+echo 📝 Fitur baru yang ditambahkan:
+echo ✅ Monitoring Jurnal Pembelajaran (Admin)
+echo ✅ Monitoring Tugas Aktif (Admin)
+echo ✅ Submit Jurnal Pembelajaran (Guru)
+echo ✅ Submit Tugas (Guru)
+echo ✅ Update Mata Pelajaran MAN IC
+echo ✅ Sample data guru mata pelajaran agama
 
 REM Add all files
-echo 📝 Adding files to Git...
+echo 📝 Adding all files to Git...
 git add .
 
 REM Commit changes
-set /p commit_msg="Enter commit message (default: Fix local issues - ready for deployment): "
-if "%commit_msg%"=="" set commit_msg=Fix local issues - ready for deployment
+set /p commit_msg="Enter commit message (default: Add monitoring features and update mata pelajaran): "
+if "%commit_msg%"=="" set commit_msg=Add monitoring features and update mata pelajaran
 echo 💾 Committing changes...
 git commit -m "%commit_msg%"
 
@@ -24,22 +25,28 @@ echo ⬆️ Pushing to GitHub...
 git push origin main
 
 echo.
-echo ✅ Files pushed successfully!
+echo ✅ New features pushed to GitHub!
 echo.
-echo 🚀 Railway Deployment:
-echo 1. Go to Railway dashboard
-echo 2. Settings → Redeploy
-echo 3. Add PostgreSQL service if not exists
-echo 4. Set environment variables:
-echo    - FLASK_ENV=production
-echo    - SECRET_KEY=your-secret-key
+echo 🚀 Railway will auto-deploy or:
+echo 1. Go to Railway Dashboard
+echo 2. Wait for auto-deployment
+echo 3. Test new features:
 echo.
-echo 🧪 Test Lokal:
-echo - URL: http://localhost:5000
-echo - Admin: admin123 / admin123
-echo - Guru: [NIP guru] / guru123
+echo 👨‍💼 Admin Features:
+echo - Dashboard → "Lihat Jurnal Hari Ini"
+echo - Dashboard → "Lihat Tugas Aktif"
 echo.
-echo 📖 Read FIX_LOCAL_ISSUES.md for details
-echo ===============================
+echo 👨‍🏫 Guru Features:
+echo - Dashboard → "Buat Jurnal"
+echo - Dashboard → "Buat Tugas"
+echo.
+echo 📚 New Mata Pelajaran:
+echo - Akidah Akhlak, Alquran Hadits, Fiqih
+echo - Bahasa Arab, Sejarah Kebudayaan Islam
+echo - Matematika Lanjut, PJOK, Prakarya
+echo - Seni Budaya, Bimbingan Konseling
+echo.
+echo 📖 Read FITUR_BARU.md for complete guide
+echo ==========================================
 
 pause
