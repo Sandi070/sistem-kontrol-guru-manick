@@ -550,6 +550,121 @@ def submit_tugas():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
 
+# API untuk daftar jadwal mengajar (admin only)
+@app.route('/api/jadwal-mengajar')
+def jadwal_mengajar():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    # Query jadwal dengan join ke tabel guru
+    jadwal_list = db.session.query(JadwalMengajar, Guru).join(Guru).order_by(
+        JadwalMengajar.hari, JadwalMengajar.jam_mulai
+    ).all()
+    
+    data = []
+    for jadwal, guru in jadwal_list:
+        data.append({
+            'id': jadwal.id,
+            'guru_id': guru.id,
+            'guru_nama': guru.nama,
+            'guru_nip': guru.nip,
+            'hari': jadwal.hari,
+            'jam_mulai': jadwal.jam_mulai.strftime('%H:%M'),
+            'jam_selesai': jadwal.jam_selesai.strftime('%H:%M'),
+            'kelas': jadwal.kelas,
+            'mata_pelajaran': jadwal.mata_pelajaran
+        })
+    
+    return jsonify({'success': True, 'data': data})
+
+# API untuk tambah jadwal mengajar (admin only)
+@app.route('/api/tambah-jadwal', methods=['POST'])
+def tambah_jadwal():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    data = request.get_json()
+    
+    # Validasi data
+    required_fields = ['guru_id', 'hari', 'jam_mulai', 'jam_selesai', 'kelas', 'mata_pelajaran']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'success': False, 'message': f'{field} harus diisi'})
+    
+    try:
+        # Cek konflik jadwal
+        existing_jadwal = JadwalMengajar.query.filter_by(
+            hari=data['hari'],
+            kelas=data['kelas']
+        ).filter(
+            JadwalMengajar.jam_mulai < datetime.strptime(data['jam_selesai'], '%H:%M').time(),
+            JadwalMengajar.jam_selesai > datetime.strptime(data['jam_mulai'], '%H:%M').time()
+        ).first()
+        
+        if existing_jadwal:
+            return jsonify({'success': False, 'message': f'Konflik jadwal! Kelas {data["kelas"]} sudah ada jadwal pada {data["hari"]} jam tersebut'})
+        
+        # Buat jadwal baru
+        jadwal = JadwalMengajar(
+            guru_id=int(data['guru_id']),
+            hari=data['hari'],
+            jam_mulai=datetime.strptime(data['jam_mulai'], '%H:%M').time(),
+            jam_selesai=datetime.strptime(data['jam_selesai'], '%H:%M').time(),
+            kelas=data['kelas'],
+            mata_pelajaran=data['mata_pelajaran']
+        )
+        
+        db.session.add(jadwal)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Jadwal berhasil ditambahkan'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+# API untuk hapus jadwal mengajar (admin only)
+@app.route('/api/hapus-jadwal/<int:jadwal_id>', methods=['DELETE'])
+def hapus_jadwal(jadwal_id):
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    try:
+        jadwal = JadwalMengajar.query.get(jadwal_id)
+        if not jadwal:
+            return jsonify({'success': False, 'message': 'Jadwal tidak ditemukan'})
+        
+        db.session.delete(jadwal)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Jadwal berhasil dihapus'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+# API untuk jadwal guru (guru only)
+@app.route('/api/jadwal-guru')
+def jadwal_guru():
+    if 'user_id' not in session or session.get('user_role') != 'guru':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    # Query jadwal guru yang login
+    jadwal_list = JadwalMengajar.query.filter_by(
+        guru_id=session['user_id']
+    ).order_by(JadwalMengajar.hari, JadwalMengajar.jam_mulai).all()
+    
+    data = []
+    for jadwal in jadwal_list:
+        data.append({
+            'id': jadwal.id,
+            'hari': jadwal.hari,
+            'jam_mulai': jadwal.jam_mulai.strftime('%H:%M'),
+            'jam_selesai': jadwal.jam_selesai.strftime('%H:%M'),
+            'kelas': jadwal.kelas,
+            'mata_pelajaran': jadwal.mata_pelajaran
+        })
+    
+    return jsonify({'success': True, 'data': data})
+
 # Route untuk menambah jadwal mengajar (admin)
 @app.route('/admin/jadwal', methods=['GET', 'POST'])
 def kelola_jadwal():
@@ -604,6 +719,36 @@ def init_database():
                 'nama': 'Muhammad Rizki, S.Pd., M.Pd.',
                 'mata_pelajaran': 'Kimia',
                 'email': 'muhammad.rizki@manic.sch.id'
+            },
+            {
+                'nip': '198507202010012003',
+                'nama': 'Ustadz Abdullah, S.Ag., M.Pd.I.',
+                'mata_pelajaran': 'Akidah Akhlak',
+                'email': 'abdullah@manic.sch.id'
+            },
+            {
+                'nip': '199001152015031004',
+                'nama': 'Ustadzah Fatimah, S.Pd.I., M.Pd.',
+                'mata_pelajaran': 'Alquran Hadits',
+                'email': 'fatimah@manic.sch.id'
+            },
+            {
+                'nip': '199203102018011005',
+                'nama': 'Ahmad Fauzi, S.Pd.I., M.H.',
+                'mata_pelajaran': 'Fiqih',
+                'email': 'fauzi@manic.sch.id'
+            },
+            {
+                'nip': '198805252019032006',
+                'nama': 'Dr. Khadijah, S.S., M.Pd.',
+                'mata_pelajaran': 'Bahasa Arab',
+                'email': 'khadijah@manic.sch.id'
+            },
+            {
+                'nip': '199512102020121007',
+                'nama': 'Umar Faruq, S.Pd.I., M.A.',
+                'mata_pelajaran': 'Sejarah Kebudayaan Islam',
+                'email': 'umar@manic.sch.id'
             }
         ]
         
@@ -625,6 +770,62 @@ def init_database():
         
         db.session.commit()
         print("✅ Sample guru berhasil dibuat dengan password: guru123")
+    
+    # Buat sample jadwal mengajar jika belum ada
+    if JadwalMengajar.query.count() == 0:
+        # Ambil guru yang sudah dibuat
+        guru_matematika = Guru.query.filter_by(mata_pelajaran='Matematika').first()
+        guru_fisika = Guru.query.filter_by(mata_pelajaran='Fisika').first()
+        guru_kimia = Guru.query.filter_by(mata_pelajaran='Kimia').first()
+        guru_akidah = Guru.query.filter_by(mata_pelajaran='Akidah Akhlak').first()
+        guru_quran = Guru.query.filter_by(mata_pelajaran='Alquran Hadits').first()
+        
+        sample_jadwal = []
+        
+        if guru_matematika:
+            sample_jadwal.extend([
+                {'guru_id': guru_matematika.id, 'hari': 'Senin', 'jam_mulai': '07:30', 'jam_selesai': '09:00', 'kelas': 'X-1', 'mata_pelajaran': 'Matematika'},
+                {'guru_id': guru_matematika.id, 'hari': 'Rabu', 'jam_mulai': '10:15', 'jam_selesai': '11:45', 'kelas': 'XI IPA-1', 'mata_pelajaran': 'Matematika'},
+                {'guru_id': guru_matematika.id, 'hari': 'Jumat', 'jam_mulai': '07:30', 'jam_selesai': '09:00', 'kelas': 'XII IPA-1', 'mata_pelajaran': 'Matematika'}
+            ])
+        
+        if guru_fisika:
+            sample_jadwal.extend([
+                {'guru_id': guru_fisika.id, 'hari': 'Selasa', 'jam_mulai': '09:15', 'jam_selesai': '10:45', 'kelas': 'XI IPA-1', 'mata_pelajaran': 'Fisika'},
+                {'guru_id': guru_fisika.id, 'hari': 'Kamis', 'jam_mulai': '13:00', 'jam_selesai': '14:30', 'kelas': 'XII IPA-2', 'mata_pelajaran': 'Fisika'}
+            ])
+        
+        if guru_kimia:
+            sample_jadwal.extend([
+                {'guru_id': guru_kimia.id, 'hari': 'Senin', 'jam_mulai': '13:00', 'jam_selesai': '14:30', 'kelas': 'XI IPA-2', 'mata_pelajaran': 'Kimia'},
+                {'guru_id': guru_kimia.id, 'hari': 'Rabu', 'jam_mulai': '07:30', 'jam_selesai': '09:00', 'kelas': 'XII IPA-1', 'mata_pelajaran': 'Kimia'}
+            ])
+        
+        if guru_akidah:
+            sample_jadwal.extend([
+                {'guru_id': guru_akidah.id, 'hari': 'Selasa', 'jam_mulai': '07:30', 'jam_selesai': '09:00', 'kelas': 'X-1', 'mata_pelajaran': 'Akidah Akhlak'},
+                {'guru_id': guru_akidah.id, 'hari': 'Kamis', 'jam_mulai': '09:15', 'jam_selesai': '10:45', 'kelas': 'X-2', 'mata_pelajaran': 'Akidah Akhlak'}
+            ])
+        
+        if guru_quran:
+            sample_jadwal.extend([
+                {'guru_id': guru_quran.id, 'hari': 'Senin', 'jam_mulai': '09:15', 'jam_selesai': '10:45', 'kelas': 'X-1', 'mata_pelajaran': 'Alquran Hadits'},
+                {'guru_id': guru_quran.id, 'hari': 'Jumat', 'jam_mulai': '09:15', 'jam_selesai': '10:45', 'kelas': 'XI IPA-1', 'mata_pelajaran': 'Alquran Hadits'}
+            ])
+        
+        for data in sample_jadwal:
+            jadwal = JadwalMengajar(
+                guru_id=data['guru_id'],
+                hari=data['hari'],
+                jam_mulai=datetime.strptime(data['jam_mulai'], '%H:%M').time(),
+                jam_selesai=datetime.strptime(data['jam_selesai'], '%H:%M').time(),
+                kelas=data['kelas'],
+                mata_pelajaran=data['mata_pelajaran']
+            )
+            db.session.add(jadwal)
+        
+        db.session.commit()
+        print("✅ Sample jadwal mengajar berhasil dibuat")
 
 # Inisialisasi untuk production
 with app.app_context():
