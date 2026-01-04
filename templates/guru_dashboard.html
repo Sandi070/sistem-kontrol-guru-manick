@@ -115,6 +115,30 @@
             </div>
         </div>
     </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5><i class="fas fa-calendar-alt"></i> Jadwal Mengajar</h5>
+            </div>
+            <div class="card-body">
+                <p>Lihat jadwal mengajar Anda</p>
+                <a href="#" class="btn btn-info" onclick="loadJadwalGuru()">
+                    <i class="fas fa-eye"></i> Lihat Jadwal
+                </a>
+                <a href="#" class="btn btn-outline-info" onclick="loadJadwalHariIni()">
+                    <i class="fas fa-clock"></i> Jadwal Hari Ini
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Jadwal Guru Section -->
+<div class="row">
+    <div class="col-12">
+        <div id="jadwal-content"></div>
+    </div>
 </div>
 
 <!-- Modal Jurnal -->
@@ -315,5 +339,137 @@ document.getElementById('tugasForm').addEventListener('submit', function(e) {
         alert('Terjadi kesalahan: ' + error);
     });
 });
+
+// Jadwal functions
+function loadJadwalGuru() {
+    document.getElementById('jadwal-content').innerHTML = `
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar-alt"></i> Jadwal Mengajar Saya</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="jadwalGuruTable">
+                        <thead>
+                            <tr>
+                                <th>Hari</th>
+                                <th>Jam</th>
+                                <th>Kelas</th>
+                                <th>Mata Pelajaran</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Fetch jadwal guru
+    fetch('/api/jadwal-guru')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.querySelector('#jadwalGuruTable tbody');
+            if (data.success && data.data.length > 0) {
+                tbody.innerHTML = '';
+                
+                // Group by hari
+                const groupedData = {};
+                data.data.forEach(jadwal => {
+                    if (!groupedData[jadwal.hari]) {
+                        groupedData[jadwal.hari] = [];
+                    }
+                    groupedData[jadwal.hari].push(jadwal);
+                });
+                
+                // Urutan hari
+                const hariOrder = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                
+                hariOrder.forEach(hari => {
+                    if (groupedData[hari]) {
+                        groupedData[hari].forEach((jadwal, index) => {
+                            tbody.innerHTML += `
+                                <tr>
+                                    ${index === 0 ? `<td rowspan="${groupedData[hari].length}" class="align-middle"><strong>${hari}</strong></td>` : ''}
+                                    <td>${jadwal.jam_mulai} - ${jadwal.jam_selesai}</td>
+                                    <td><span class="badge bg-primary">${jadwal.kelas}</span></td>
+                                    <td>${jadwal.mata_pelajaran}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Belum ada jadwal mengajar</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.querySelector('#jadwalGuruTable tbody').innerHTML = 
+                '<tr><td colspan="4" class="text-center text-danger">Error loading data</td></tr>';
+        });
+}
+
+function loadJadwalHariIni() {
+    const today = new Date();
+    const hariIni = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][today.getDay()];
+    
+    document.getElementById('jadwal-content').innerHTML = `
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock"></i> Jadwal Hari Ini (${hariIni})</h5>
+            </div>
+            <div class="card-body">
+                <div id="jadwalHariIniContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Fetch jadwal guru
+    fetch('/api/jadwal-guru')
+        .then(response => response.json())
+        .then(data => {
+            const content = document.getElementById('jadwalHariIniContent');
+            if (data.success && data.data.length > 0) {
+                const jadwalHariIni = data.data.filter(jadwal => jadwal.hari === hariIni);
+                
+                if (jadwalHariIni.length > 0) {
+                    content.innerHTML = '';
+                    jadwalHariIni.forEach(jadwal => {
+                        content.innerHTML += `
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-clock"></i> ${jadwal.jam_mulai} - ${jadwal.jam_selesai}</h6>
+                                <p class="mb-1"><strong>Kelas:</strong> ${jadwal.kelas}</p>
+                                <p class="mb-0"><strong>Mata Pelajaran:</strong> ${jadwal.mata_pelajaran}</p>
+                            </div>
+                        `;
+                    });
+                } else {
+                    content.innerHTML = '<div class="alert alert-success"><i class="fas fa-smile"></i> Tidak ada jadwal mengajar hari ini</div>';
+                }
+            } else {
+                content.innerHTML = '<div class="alert alert-warning">Belum ada jadwal mengajar</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('jadwalHariIniContent').innerHTML = 
+                '<div class="alert alert-danger">Error loading jadwal</div>';
+        });
+}
 </script>
 {% endblock %}
