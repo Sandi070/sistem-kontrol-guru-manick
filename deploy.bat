@@ -1,22 +1,23 @@
 @echo off
-echo 🆕 Deploying New Features - MAN IC Kendari
-echo ==========================================
+echo 🆕 Deploying Jadwal Mengajar Feature - MAN IC Kendari
+echo ===================================================
 
-echo 📝 Fitur baru yang ditambahkan:
-echo ✅ Monitoring Jurnal Pembelajaran (Admin)
-echo ✅ Monitoring Tugas Aktif (Admin)
-echo ✅ Submit Jurnal Pembelajaran (Guru)
-echo ✅ Submit Tugas (Guru)
-echo ✅ Update Mata Pelajaran MAN IC
-echo ✅ Sample data guru mata pelajaran agama
+echo 📝 Fitur jadwal mengajar yang ditambahkan:
+echo ✅ Manajemen Jadwal Mengajar (Admin)
+echo ✅ Tambah/Hapus Jadwal dengan validasi konflik
+echo ✅ Lihat Jadwal Guru (Guru)
+echo ✅ Jadwal Hari Ini (Guru)
+echo ✅ Sample data jadwal mengajar
+echo ✅ Auto-fill mata pelajaran berdasarkan guru
+echo ✅ Integrasi dengan sistem absensi
 
 REM Add all files
 echo 📝 Adding all files to Git...
 git add .
 
 REM Commit changes
-set /p commit_msg="Enter commit message (default: Add monitoring features and update mata pelajaran): "
-if "%commit_msg%"=="" set commit_msg=Add monitoring features and update mata pelajaran
+set /p commit_msg="Enter commit message (default: Add jadwal mengajar feature): "
+if "%commit_msg%"=="" set commit_msg=Add jadwal mengajar feature
 echo 💾 Committing changes...
 git commit -m "%commit_msg%"
 
@@ -25,28 +26,30 @@ echo ⬆️ Pushing to GitHub...
 git push origin main
 
 echo.
-echo ✅ New features pushed to GitHub!
+echo ✅ Jadwal mengajar feature pushed to GitHub!
 echo.
 echo 🚀 Railway will auto-deploy or:
 echo 1. Go to Railway Dashboard
 echo 2. Wait for auto-deployment
-echo 3. Test new features:
+echo 3. Test new jadwal features:
 echo.
 echo 👨‍💼 Admin Features:
-echo - Dashboard → "Lihat Jurnal Hari Ini"
-echo - Dashboard → "Lihat Tugas Aktif"
+echo - Dashboard → "Lihat Jadwal"
+echo - Dashboard → "Tambah Jadwal" (with conflict validation)
+echo - Hapus jadwal dari tabel
 echo.
 echo 👨‍🏫 Guru Features:
-echo - Dashboard → "Buat Jurnal"
-echo - Dashboard → "Buat Tugas"
+echo - Dashboard → "Lihat Jadwal" (all schedule)
+echo - Dashboard → "Jadwal Hari Ini" (today only)
 echo.
-echo 📚 New Mata Pelajaran:
-echo - Akidah Akhlak, Alquran Hadits, Fiqih
-echo - Bahasa Arab, Sejarah Kebudayaan Islam
-echo - Matematika Lanjut, PJOK, Prakarya
-echo - Seni Budaya, Bimbingan Konseling
+echo 📊 Sample Jadwal:
+echo - Matematika: Senin 07:30-09:00 (X-1)
+echo - Fisika: Selasa 09:15-10:45 (XI IPA-1)
+echo - Akidah Akhlak: Selasa 07:30-09:00 (X-1)
+echo - Alquran Hadits: Senin 09:15-10:45 (X-1)
+echo - Dan lainnya...
 echo.
 echo 📖 Read FITUR_BARU.md for complete guide
-echo ==========================================
+echo ===================================================
 
 pause
