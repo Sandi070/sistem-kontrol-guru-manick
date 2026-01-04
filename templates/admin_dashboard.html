@@ -164,7 +164,16 @@
                                 <option value="Geografi">Geografi</option>
                                 <option value="Ekonomi">Ekonomi</option>
                                 <option value="Sosiologi">Sosiologi</option>
-                                <option value="PAI">Pendidikan Agama Islam</option>
+                                <option value="Akidah Akhlak">Akidah Akhlak</option>
+                                <option value="Alquran Hadits">Alquran Hadits</option>
+                                <option value="Fiqih">Fiqih</option>
+                                <option value="Bahasa Arab">Bahasa Arab</option>
+                                <option value="Sejarah Kebudayaan Islam">Sejarah Kebudayaan Islam</option>
+                                <option value="Matematika Lanjut">Matematika Lanjut</option>
+                                <option value="PJOK">PJOK</option>
+                                <option value="Prakarya">Prakarya</option>
+                                <option value="Seni Budaya">Seni Budaya</option>
+                                <option value="Bimbingan Konseling">Bimbingan Konseling</option>
                                 <option value="PKn">Pendidikan Kewarganegaraan</option>
                             </select>
                         </div>
@@ -308,23 +317,163 @@ function loadJurnal() {
                 <h5><i class="fas fa-book"></i> Jurnal Pembelajaran Hari Ini</h5>
             </div>
             <div class="card-body">
-                <p class="text-muted">Fitur monitoring jurnal pembelajaran akan segera tersedia.</p>
+                <div class="table-responsive">
+                    <table class="table table-striped" id="jurnalTable">
+                        <thead>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>Guru</th>
+                                <th>Kelas</th>
+                                <th>Mata Pelajaran</th>
+                                <th>Materi</th>
+                                <th>Metode</th>
+                                <th>Kehadiran</th>
+                                <th>Catatan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="8" class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     `;
+    
+    // Fetch data jurnal
+    fetch('/api/monitoring-jurnal')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.querySelector('#jurnalTable tbody');
+            if (data.success && data.data.length > 0) {
+                tbody.innerHTML = '';
+                data.data.forEach(jurnal => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${jurnal.waktu_input}</td>
+                            <td>
+                                <strong>${jurnal.guru_nama}</strong><br>
+                                <small class="text-muted">${jurnal.guru_nip}</small>
+                            </td>
+                            <td>${jurnal.kelas}</td>
+                            <td>${jurnal.mata_pelajaran}</td>
+                            <td>${jurnal.materi}</td>
+                            <td>${jurnal.metode_pembelajaran || '-'}</td>
+                            <td>
+                                <span class="badge bg-success">${jurnal.siswa_hadir} Hadir</span>
+                                ${jurnal.siswa_tidak_hadir > 0 ? `<span class="badge bg-warning">${jurnal.siswa_tidak_hadir} Tidak Hadir</span>` : ''}
+                            </td>
+                            <td>${jurnal.catatan || '-'}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Belum ada jurnal hari ini</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.querySelector('#jurnalTable tbody').innerHTML = 
+                '<tr><td colspan="8" class="text-center text-danger">Error loading data</td></tr>';
+        });
 }
 
 function loadTugas() {
     document.getElementById('dynamic-content').innerHTML = `
         <div class="card">
             <div class="card-header">
-                <h5><i class="fas fa-tasks"></i> Tugas Aktif</h5>
+                <h5><i class="fas fa-tasks"></i> Monitoring Tugas Aktif</h5>
             </div>
             <div class="card-body">
-                <p class="text-muted">Fitur monitoring tugas akan segera tersedia.</p>
+                <div class="table-responsive">
+                    <table class="table table-striped" id="tugasTable">
+                        <thead>
+                            <tr>
+                                <th>Guru</th>
+                                <th>Judul Tugas</th>
+                                <th>Kelas</th>
+                                <th>Mata Pelajaran</th>
+                                <th>Diberikan</th>
+                                <th>Deadline</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="8" class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     `;
+    
+    // Fetch data tugas
+    fetch('/api/monitoring-tugas')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.querySelector('#tugasTable tbody');
+            if (data.success && data.data.length > 0) {
+                tbody.innerHTML = '';
+                data.data.forEach(tugas => {
+                    let statusBadge = '';
+                    if (tugas.status_deadline === 'overdue') {
+                        statusBadge = `<span class="badge bg-danger">Terlambat ${Math.abs(tugas.sisa_hari)} hari</span>`;
+                    } else if (tugas.status_deadline === 'urgent') {
+                        statusBadge = `<span class="badge bg-warning">${tugas.sisa_hari} hari lagi</span>`;
+                    } else {
+                        statusBadge = `<span class="badge bg-success">${tugas.sisa_hari} hari lagi</span>`;
+                    }
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>
+                                <strong>${tugas.guru_nama}</strong><br>
+                                <small class="text-muted">${tugas.guru_nip}</small>
+                            </td>
+                            <td>
+                                <strong>${tugas.judul}</strong><br>
+                                <small class="text-muted">${tugas.deskripsi.substring(0, 50)}...</small>
+                            </td>
+                            <td>${tugas.kelas}</td>
+                            <td>${tugas.mata_pelajaran}</td>
+                            <td>${tugas.tanggal_diberikan}</td>
+                            <td>${tugas.deadline}</td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info" onclick="viewTugas(${tugas.id})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Belum ada tugas aktif</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.querySelector('#tugasTable tbody').innerHTML = 
+                '<tr><td colspan="8" class="text-center text-danger">Error loading data</td></tr>';
+        });
+}
+
+function viewTugas(tugasId) {
+    // Implementasi view detail tugas
+    alert('Fitur view detail tugas akan segera tersedia');
 }
 
 // Handle form submission
