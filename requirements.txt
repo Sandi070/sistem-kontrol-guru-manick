@@ -5,4 +5,4 @@ qrcode[pil]==7.4.2
 Pillow>=9.0.0
 gunicorn==21.2.0
 psycopg2-binary==2.9.7
-gunicorn==21.2.0
+pytz==2023.3
