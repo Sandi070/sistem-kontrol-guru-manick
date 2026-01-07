@@ -76,11 +76,71 @@
                 <h5 class="modal-title">Scan Barcode Absensi</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center">
-                <div id="scanner-container">
-                    <video id="scanner-video" width="100%" height="300" style="border: 2px solid #007bff;"></video>
+            <div class="modal-body">
+                <!-- Form Input Kelas dan Mata Pelajaran -->
+                <div id="absensi-form" class="mb-3">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Pilih kelas dan mata pelajaran sebelum scan QR code
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Kelas</label>
+                            <select class="form-select" id="kelas-absensi" required>
+                                <option value="">Pilih Kelas</option>
+                                <option value="X-1">X-1</option>
+                                <option value="X-2">X-2</option>
+                                <option value="X-3">X-3</option>
+                                <option value="X-4">X-4</option>
+                                <option value="X-5">X-5</option>
+                                <option value="XI-1">XI-1</option>
+                                <option value="XI-2">XI-2</option>
+                                <option value="XI-3">XI-3</option>
+                                <option value="XI-4">XI-4</option>
+                                <option value="XI-5">XI-5</option>
+                                <option value="XII-1">XII-1</option>
+                                <option value="XII-2">XII-2</option>
+                                <option value="XII-3">XII-3</option>
+                                <option value="XII-4">XII-4</option>
+                                <option value="XII-5">XII-5</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Mata Pelajaran</label>
+                            <select class="form-select" id="mapel-absensi" required>
+                                <option value="">Pilih Mata Pelajaran</option>
+                                <option value="Matematika">Matematika</option>
+                                <option value="Fisika">Fisika</option>
+                                <option value="Kimia">Kimia</option>
+                                <option value="Biologi">Biologi</option>
+                                <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                                <option value="Bahasa Inggris">Bahasa Inggris</option>
+                                <option value="Sejarah">Sejarah</option>
+                                <option value="Geografi">Geografi</option>
+                                <option value="Ekonomi">Ekonomi</option>
+                                <option value="Sosiologi">Sosiologi</option>
+                                <option value="Akidah Akhlak">Akidah Akhlak</option>
+                                <option value="Alquran Hadits">Alquran Hadits</option>
+                                <option value="Fiqih">Fiqih</option>
+                                <option value="Bahasa Arab">Bahasa Arab</option>
+                                <option value="Sejarah Kebudayaan Islam">Sejarah Kebudayaan Islam</option>
+                                <option value="Matematika Lanjut">Matematika Lanjut</option>
+                                <option value="PJOK">PJOK</option>
+                                <option value="Prakarya">Prakarya</option>
+                                <option value="Seni Budaya">Seni Budaya</option>
+                                <option value="Bimbingan Konseling">Bimbingan Konseling</option>
+                                <option value="PKn">Pendidikan Kewarganegaraan</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <div id="scanner-result" class="mt-3"></div>
+                
+                <!-- Scanner Container -->
+                <div class="text-center">
+                    <div id="scanner-container">
+                        <video id="scanner-video" width="100%" height="300" style="border: 2px solid #007bff;"></video>
+                    </div>
+                    <div id="scanner-result" class="mt-3"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -129,19 +189,48 @@ function scanQRCode() {
             scanning = false;
             video.srcObject.getTracks().forEach(track => track.stop());
             
-            // Kirim data ke server
+            // Validasi input kelas dan mata pelajaran
+            const kelas = document.getElementById('kelas-absensi').value;
+            const mataPelajaran = document.getElementById('mapel-absensi').value;
+            
+            if (!kelas || !mataPelajaran) {
+                document.getElementById('scanner-result').innerHTML = 
+                    '<div class="alert alert-warning">Pilih kelas dan mata pelajaran terlebih dahulu!</div>';
+                // Restart scanner
+                setTimeout(() => {
+                    scanning = true;
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                    startScanner();
+                }, 2000);
+                return;
+            }
+            
+            // Kirim data ke server dengan kelas dan mata pelajaran
             fetch('/api/scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ qr_data: code.data })
+                body: JSON.stringify({ 
+                    qr_data: code.data,
+                    kelas: kelas,
+                    mata_pelajaran: mataPelajaran
+                })
             })
             .then(response => response.json())
             .then(data => {
                 const alertClass = data.success ? 'alert-success' : 'alert-danger';
                 document.getElementById('scanner-result').innerHTML = 
-                    `<div class="alert ${alertClass}">${data.message}</div>`;
+                    `<div class="alert ${alertClass}">
+                        <strong>${data.message}</strong><br>
+                        <small>Kelas: ${kelas} | Mata Pelajaran: ${mataPelajaran}</small>
+                    </div>`;
+                
+                // Reset form jika sukses
+                if (data.success) {
+                    document.getElementById('kelas-absensi').value = '';
+                    document.getElementById('mapel-absensi').value = '';
+                }
             })
             .catch(error => {
                 document.getElementById('scanner-result').innerHTML = 
@@ -161,6 +250,10 @@ document.getElementById('scannerModal').addEventListener('hidden.bs.modal', func
     if (video && video.srcObject) {
         video.srcObject.getTracks().forEach(track => track.stop());
     }
+    // Reset form
+    document.getElementById('kelas-absensi').value = '';
+    document.getElementById('mapel-absensi').value = '';
+    document.getElementById('scanner-result').innerHTML = '';
 });
 </script>
 {% endblock %}
