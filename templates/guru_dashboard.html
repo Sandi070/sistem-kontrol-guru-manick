@@ -13,26 +13,26 @@
     <div class="col-md-4 mb-3">
         <div class="card">
             <div class="card-body text-center">
-                {% if kehadiran_hari_ini %}
-                    {% if kehadiran_hari_ini.jam_keluar %}
-                        <i class="fas fa-check-circle fa-3x text-success mb-2"></i>
-                        <h5>Sudah Absen</h5>
-                        <p class="small">
-                            Masuk: {{ kehadiran_hari_ini.jam_masuk.strftime('%H:%M') }}<br>
-                            Keluar: {{ kehadiran_hari_ini.jam_keluar.strftime('%H:%M') }}
-                        </p>
-                    {% else %}
-                        <i class="fas fa-clock fa-3x text-warning mb-2"></i>
-                        <h5>Sudah Masuk</h5>
-                        <p class="small">
-                            Masuk: {{ kehadiran_hari_ini.jam_masuk.strftime('%H:%M') }}<br>
-                            <em>Belum absen keluar</em>
-                        </p>
-                    {% endif %}
+                <h5><i class="fas fa-clipboard-check"></i> Kehadiran Hari Ini</h5>
+                {% if kehadiran_hari_ini and kehadiran_hari_ini|length > 0 %}
+                    <div class="mt-3">
+                        {% for kehadiran in kehadiran_hari_ini %}
+                        <div class="alert alert-sm {% if kehadiran.jam_keluar %}alert-success{% else %}alert-warning{% endif %} mb-2">
+                            <strong>{{ kehadiran.kelas }}</strong> - {{ kehadiran.mata_pelajaran }}<br>
+                            <small>
+                                Masuk: {{ kehadiran.jam_masuk.strftime('%H:%M') if kehadiran.jam_masuk else '-' }}
+                                {% if kehadiran.jam_keluar %}
+                                | Keluar: {{ kehadiran.jam_keluar.strftime('%H:%M') }}
+                                {% else %}
+                                | <em>Belum keluar</em>
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
                 {% else %}
                     <i class="fas fa-times-circle fa-3x text-danger mb-2"></i>
-                    <h5>Belum Absen</h5>
-                    <p class="small">Silakan scan barcode untuk absen masuk</p>
+                    <p class="small">Belum ada absensi hari ini</p>
                 {% endif %}
             </div>
         </div>
@@ -162,10 +162,19 @@
                                 <option value="">Pilih Kelas</option>
                                 <option value="X-1">X-1</option>
                                 <option value="X-2">X-2</option>
+                                <option value="X-3">X-3</option>
+                                <option value="X-4">X-4</option>
+                                <option value="X-5">X-5</option>
                                 <option value="XI-1">XI-1</option>
                                 <option value="XI-2">XI-2</option>
+                                <option value="XI-3">XI-3</option>
+                                <option value="XI-4">XI-4</option>
+                                <option value="XI-5">XI-5</option>
                                 <option value="XII-1">XII-1</option>
                                 <option value="XII-2">XII-2</option>
+                                <option value="XII-3">XII-3</option>
+                                <option value="XII-4">XII-4</option>
+                                <option value="XII-5">XII-5</option>
                             </select>
                         </div>
                     </div>
@@ -230,10 +239,19 @@
                                 <option value="">Pilih Kelas</option>
                                 <option value="X-1">X-1</option>
                                 <option value="X-2">X-2</option>
+                                <option value="X-3">X-3</option>
+                                <option value="X-4">X-4</option>
+                                <option value="X-5">X-5</option>
                                 <option value="XI-1">XI-1</option>
                                 <option value="XI-2">XI-2</option>
+                                <option value="XI-3">XI-3</option>
+                                <option value="XI-4">XI-4</option>
+                                <option value="XI-5">XI-5</option>
                                 <option value="XII-1">XII-1</option>
                                 <option value="XII-2">XII-2</option>
+                                <option value="XII-3">XII-3</option>
+                                <option value="XII-4">XII-4</option>
+                                <option value="XII-5">XII-5</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
