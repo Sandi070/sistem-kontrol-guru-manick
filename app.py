@@ -6,6 +6,22 @@ import qrcode
 import io
 import base64
 from werkzeug.security import generate_password_hash, check_password_hash
+import pytz
+
+# Konfigurasi zona waktu WITA (UTC+8)
+WITA = pytz.timezone('Asia/Makassar')
+
+def get_wita_time():
+    """Return current time in WITA timezone"""
+    return datetime.now(WITA)
+
+def get_wita_date():
+    """Return current date in WITA timezone"""
+    return get_wita_time().date()
+
+def get_wita_time_only():
+    """Return current time only in WITA timezone"""
+    return get_wita_time().time()
 
 app = Flask(__name__)
 
@@ -56,11 +72,13 @@ class Kehadiran(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     guru_id = db.Column(db.Integer, db.ForeignKey('guru.id'), nullable=False)
     tanggal = db.Column(db.Date, nullable=False)
+    kelas = db.Column(db.String(10), nullable=False)  # Absensi per kelas
+    mata_pelajaran = db.Column(db.String(50), nullable=False)
     jam_masuk = db.Column(db.DateTime)
     jam_keluar = db.Column(db.DateTime)
     status = db.Column(db.String(20), default='hadir')  # hadir, tidak_hadir, terlambat
     keterangan = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: get_wita_time())
 
 class JurnalPembelajaran(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -73,7 +91,7 @@ class JurnalPembelajaran(db.Model):
     siswa_hadir = db.Column(db.Integer, default=0)
     siswa_tidak_hadir = db.Column(db.Integer, default=0)
     catatan = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: get_wita_time())
 
 class Tugas(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -85,7 +103,7 @@ class Tugas(db.Model):
     tanggal_diberikan = db.Column(db.Date, nullable=False)
     deadline = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), default='aktif')  # aktif, selesai
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: get_wita_time())
 
 # === FUNGSI HELPER ===
 def generate_qr_code(data):
@@ -107,12 +125,12 @@ def get_hari_ini():
         0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 
         4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'
     }
-    return hari_dict[datetime.now().weekday()]
+    return hari_dict[get_wita_time().weekday()]
 
 def check_jadwal_mengajar(guru_id):
     """Cek apakah guru sedang dalam jam mengajar"""
     hari_ini = get_hari_ini()
-    waktu_sekarang = datetime.now().time()
+    waktu_sekarang = get_wita_time_only()
     
     jadwal = JadwalMengajar.query.filter_by(
         guru_id=guru_id, 
@@ -166,8 +184,8 @@ def guru_dashboard():
     # Cek kehadiran hari ini
     kehadiran_hari_ini = Kehadiran.query.filter_by(
         guru_id=guru.id,
-        tanggal=datetime.now().date()
-    ).first()
+        tanggal=get_wita_date()
+    ).all()  # Ambil semua kehadiran hari ini (per kelas)
     
     # Cek jadwal mengajar
     jadwal_sekarang = check_jadwal_mengajar(guru.id)
@@ -183,7 +201,7 @@ def guru_dashboard():
                          kehadiran_hari_ini=kehadiran_hari_ini,
                          jadwal_sekarang=jadwal_sekarang,
                          tugas_aktif=tugas_aktif,
-                         today=datetime.now().strftime('%Y-%m-%d'))
+                         today=get_wita_date().strftime('%Y-%m-%d'))
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
@@ -195,12 +213,12 @@ def admin_dashboard():
     
     # Kehadiran hari ini
     kehadiran_hari_ini = db.session.query(Kehadiran).filter_by(
-        tanggal=datetime.now().date()
+        tanggal=get_wita_date()
     ).count()
     
     # Guru yang sedang mengajar
     hari_ini = get_hari_ini()
-    waktu_sekarang = datetime.now().time()
+    waktu_sekarang = get_wita_time_only()
     
     guru_mengajar = db.session.query(JadwalMengajar).filter_by(
         hari=hari_ini
@@ -214,14 +232,19 @@ def admin_dashboard():
                          kehadiran_hari_ini=kehadiran_hari_ini,
                          guru_mengajar=guru_mengajar)
 
-# API untuk scan barcode
+# API untuk scan barcode - Updated untuk absensi per kelas
 @app.route('/api/scan', methods=['POST'])
 def scan_barcode():
     data = request.get_json()
     qr_data = data.get('qr_data')
+    kelas = data.get('kelas')  # Kelas untuk absensi
+    mata_pelajaran = data.get('mata_pelajaran')  # Mata pelajaran
     
     if not qr_data:
         return jsonify({'success': False, 'message': 'Data QR tidak valid'})
+    
+    if not kelas or not mata_pelajaran:
+        return jsonify({'success': False, 'message': 'Kelas dan mata pelajaran harus diisi'})
     
     # Parse QR data (format: "GURU_ID:NIP")
     try:
@@ -231,18 +254,22 @@ def scan_barcode():
         if not guru:
             return jsonify({'success': False, 'message': 'Guru tidak ditemukan'})
         
-        # Cek kehadiran hari ini
+        # Cek kehadiran untuk kelas dan mata pelajaran ini hari ini
         kehadiran = Kehadiran.query.filter_by(
             guru_id=guru.id,
-            tanggal=datetime.now().date()
+            tanggal=get_wita_date(),
+            kelas=kelas,
+            mata_pelajaran=mata_pelajaran
         ).first()
         
         if not kehadiran:
-            # Absen masuk
+            # Absen masuk untuk kelas ini
             kehadiran = Kehadiran(
                 guru_id=guru.id,
-                tanggal=datetime.now().date(),
-                jam_masuk=datetime.now(),
+                tanggal=get_wita_date(),
+                kelas=kelas,
+                mata_pelajaran=mata_pelajaran,
+                jam_masuk=get_wita_time(),
                 status='hadir'
             )
             db.session.add(kehadiran)
@@ -250,24 +277,24 @@ def scan_barcode():
             
             return jsonify({
                 'success': True, 
-                'message': f'Selamat datang {guru.nama}! Absen masuk berhasil.',
+                'message': f'Selamat datang {guru.nama}! Absen masuk kelas {kelas} ({mata_pelajaran}) berhasil.',
                 'type': 'masuk'
             })
         else:
-            # Absen keluar
+            # Absen keluar untuk kelas ini
             if not kehadiran.jam_keluar:
-                kehadiran.jam_keluar = datetime.now()
+                kehadiran.jam_keluar = get_wita_time()
                 db.session.commit()
                 
                 return jsonify({
                     'success': True,
-                    'message': f'Sampai jumpa {guru.nama}! Absen keluar berhasil.',
+                    'message': f'Sampai jumpa {guru.nama}! Absen keluar kelas {kelas} ({mata_pelajaran}) berhasil.',
                     'type': 'keluar'
                 })
             else:
                 return jsonify({
                     'success': False,
-                    'message': 'Anda sudah absen keluar hari ini.'
+                    'message': f'Anda sudah absen keluar untuk kelas {kelas} hari ini.'
                 })
                 
     except Exception as e:
@@ -358,7 +385,7 @@ def daftar_guru():
     
     return jsonify({'success': True, 'data': data})
 
-# API untuk kehadiran hari ini (admin only)
+# API untuk kehadiran hari ini (admin only) - Updated untuk per kelas
 @app.route('/api/kehadiran-hari-ini')
 def kehadiran_hari_ini():
     if 'user_id' not in session or session.get('user_role') != 'admin':
@@ -366,18 +393,121 @@ def kehadiran_hari_ini():
     
     # Query kehadiran hari ini dengan join ke tabel guru
     kehadiran_list = db.session.query(Kehadiran, Guru).join(Guru).filter(
-        Kehadiran.tanggal == datetime.now().date()
-    ).all()
+        Kehadiran.tanggal == get_wita_date()
+    ).order_by(Kehadiran.created_at.desc()).all()
     
     data = []
     for kehadiran, guru in kehadiran_list:
         data.append({
             'nama': guru.nama,
             'nip': guru.nip,
-            'mata_pelajaran': guru.mata_pelajaran,
+            'kelas': kehadiran.kelas,
+            'mata_pelajaran': kehadiran.mata_pelajaran,
             'jam_masuk': kehadiran.jam_masuk.strftime('%H:%M') if kehadiran.jam_masuk else '-',
             'jam_keluar': kehadiran.jam_keluar.strftime('%H:%M') if kehadiran.jam_keluar else '-',
-            'status': kehadiran.status
+            'status': kehadiran.status,
+            'keterangan': kehadiran.keterangan or '-'
+        })
+    
+    return jsonify({'success': True, 'data': data})
+
+# API untuk hapus guru (admin only)
+@app.route('/api/hapus-guru/<int:guru_id>', methods=['DELETE'])
+def hapus_guru(guru_id):
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    try:
+        guru = Guru.query.get(guru_id)
+        if not guru:
+            return jsonify({'success': False, 'message': 'Guru tidak ditemukan'})
+        
+        if guru.role == 'admin':
+            return jsonify({'success': False, 'message': 'Tidak dapat menghapus admin'})
+        
+        # Hapus data terkait
+        Kehadiran.query.filter_by(guru_id=guru_id).delete()
+        JurnalPembelajaran.query.filter_by(guru_id=guru_id).delete()
+        Tugas.query.filter_by(guru_id=guru_id).delete()
+        JadwalMengajar.query.filter_by(guru_id=guru_id).delete()
+        
+        # Hapus guru
+        db.session.delete(guru)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Guru berhasil dihapus'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+# API untuk edit password guru (admin only)
+@app.route('/api/edit-password', methods=['POST'])
+def edit_password():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    data = request.get_json()
+    guru_id = data.get('guru_id')
+    new_password = data.get('new_password')
+    
+    if not guru_id or not new_password:
+        return jsonify({'success': False, 'message': 'Guru ID dan password baru harus diisi'})
+    
+    try:
+        guru = Guru.query.get(guru_id)
+        if not guru:
+            return jsonify({'success': False, 'message': 'Guru tidak ditemukan'})
+        
+        guru.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Password berhasil diubah'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+# API untuk print jurnal pembelajaran
+@app.route('/api/print-jurnal')
+def print_jurnal():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    # Parameter filter
+    tanggal_mulai = request.args.get('tanggal_mulai')
+    tanggal_selesai = request.args.get('tanggal_selesai')
+    guru_id = request.args.get('guru_id')
+    
+    # Base query
+    query = db.session.query(JurnalPembelajaran, Guru).join(Guru)
+    
+    # Filter berdasarkan role
+    if session.get('user_role') == 'guru':
+        query = query.filter(JurnalPembelajaran.guru_id == session['user_id'])
+    elif guru_id:
+        query = query.filter(JurnalPembelajaran.guru_id == guru_id)
+    
+    # Filter tanggal
+    if tanggal_mulai:
+        query = query.filter(JurnalPembelajaran.tanggal >= tanggal_mulai)
+    if tanggal_selesai:
+        query = query.filter(JurnalPembelajaran.tanggal <= tanggal_selesai)
+    
+    jurnal_list = query.order_by(JurnalPembelajaran.tanggal.desc()).all()
+    
+    data = []
+    for jurnal, guru in jurnal_list:
+        data.append({
+            'tanggal': jurnal.tanggal.strftime('%Y-%m-%d'),
+            'guru_nama': guru.nama,
+            'guru_nip': guru.nip,
+            'kelas': jurnal.kelas,
+            'mata_pelajaran': jurnal.mata_pelajaran,
+            'materi': jurnal.materi,
+            'metode_pembelajaran': jurnal.metode_pembelajaran,
+            'siswa_hadir': jurnal.siswa_hadir,
+            'siswa_tidak_hadir': jurnal.siswa_tidak_hadir,
+            'catatan': jurnal.catatan,
+            'waktu_input': jurnal.created_at.strftime('%Y-%m-%d %H:%M')
         })
     
     return jsonify({'success': True, 'data': data})
@@ -420,7 +550,7 @@ def monitoring_jurnal():
     
     # Query jurnal hari ini dengan join ke tabel guru
     jurnal_list = db.session.query(JurnalPembelajaran, Guru).join(Guru).filter(
-        JurnalPembelajaran.tanggal == datetime.now().date()
+        JurnalPembelajaran.tanggal == get_wita_date()
     ).order_by(JurnalPembelajaran.created_at.desc()).all()
     
     data = []
@@ -455,7 +585,7 @@ def monitoring_tugas():
     data = []
     for tugas, guru in tugas_list:
         # Hitung sisa hari deadline
-        sisa_hari = (tugas.deadline - datetime.now().date()).days
+        sisa_hari = (tugas.deadline - get_wita_date()).days
         status_deadline = 'normal'
         if sisa_hari < 0:
             status_deadline = 'overdue'
