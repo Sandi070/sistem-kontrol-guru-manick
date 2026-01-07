@@ -261,14 +261,18 @@
                                 <option value="X-1">X-1</option>
                                 <option value="X-2">X-2</option>
                                 <option value="X-3">X-3</option>
-                                <option value="XI IPA-1">XI IPA-1</option>
-                                <option value="XI IPA-2">XI IPA-2</option>
-                                <option value="XI IPS-1">XI IPS-1</option>
-                                <option value="XI IPS-2">XI IPS-2</option>
-                                <option value="XII IPA-1">XII IPA-1</option>
-                                <option value="XII IPA-2">XII IPA-2</option>
-                                <option value="XII IPS-1">XII IPS-1</option>
-                                <option value="XII IPS-2">XII IPS-2</option>
+                                <option value="X-4">X-4</option>
+                                <option value="X-5">X-5</option>
+                                <option value="XI-1">XI-1</option>
+                                <option value="XI-2">XI-2</option>
+                                <option value="XI-3">XI-3</option>
+                                <option value="XI-4">XI-4</option>
+                                <option value="XI-5">XI-5</option>
+                                <option value="XII-1">XII-1</option>
+                                <option value="XII-2">XII-2</option>
+                                <option value="XII-3">XII-3</option>
+                                <option value="XII-4">XII-4</option>
+                                <option value="XII-5">XII-5</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -325,10 +329,12 @@ function loadKehadiran() {
                             <tr>
                                 <th>Nama Guru</th>
                                 <th>NIP</th>
+                                <th>Kelas</th>
                                 <th>Mata Pelajaran</th>
                                 <th>Jam Masuk</th>
                                 <th>Jam Keluar</th>
                                 <th>Status</th>
+                                <th>Keterangan</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -372,11 +378,12 @@ function loadDaftarGuru() {
                                 <th>Email</th>
                                 <th>QR Code</th>
                                 <th>Tanggal Dibuat</th>
+                                <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td colspan="6" class="text-center">
+                                <td colspan="7" class="text-center">
                                     <div class="spinner-border" role="status">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
@@ -409,25 +416,36 @@ function loadDaftarGuru() {
                             <td>${guru.email}</td>
                             <td>${qrCodeImg}</td>
                             <td>${guru.created_at}</td>
+                            <td>
+                                <button class="btn btn-sm btn-warning" onclick="editPassword(${guru.id}, '${guru.nama}')" title="Edit Password">
+                                    <i class="fas fa-key"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="hapusGuru(${guru.id}, '${guru.nama}')" title="Hapus Guru">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
                         </tr>
                     `;
                 });
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada data guru</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Belum ada data guru</td></tr>';
             }
         })
         .catch(error => {
             console.error('Error:', error);
             document.querySelector('#guruTable tbody').innerHTML = 
-                '<tr><td colspan="6" class="text-center text-danger">Error loading data</td></tr>';
+                '<tr><td colspan="7" class="text-center text-danger">Error loading data</td></tr>';
         });
 }
 
 function loadJurnal() {
     document.getElementById('dynamic-content').innerHTML = `
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5><i class="fas fa-book"></i> Jurnal Pembelajaran Hari Ini</h5>
+                <button class="btn btn-success btn-sm" onclick="printJurnal()">
+                    <i class="fas fa-print"></i> Print Jurnal
+                </button>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -788,5 +806,149 @@ document.getElementById('jadwalForm').addEventListener('submit', function(e) {
         alert('Terjadi kesalahan: ' + error);
     });
 });
+
+// Function untuk hapus guru
+function hapusGuru(guruId, namaGuru) {
+    if (confirm(`Yakin ingin menghapus guru ${namaGuru}? Semua data terkait akan ikut terhapus.`)) {
+        fetch(`/api/hapus-guru/${guruId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Guru berhasil dihapus!');
+                loadDaftarGuru(); // Refresh table
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Terjadi kesalahan: ' + error);
+        });
+    }
+}
+
+// Function untuk edit password guru
+function editPassword(guruId, namaGuru) {
+    const newPassword = prompt(`Masukkan password baru untuk ${namaGuru}:`);
+    if (newPassword && newPassword.length >= 6) {
+        fetch('/api/edit-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                guru_id: guruId,
+                new_password: newPassword
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Password berhasil diubah!');
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Terjadi kesalahan: ' + error);
+        });
+    } else if (newPassword !== null) {
+        alert('Password minimal 6 karakter!');
+    }
+}
+
+// Function untuk print jurnal
+function printJurnal() {
+    const tanggalMulai = prompt('Tanggal mulai (YYYY-MM-DD):');
+    const tanggalSelesai = prompt('Tanggal selesai (YYYY-MM-DD):');
+    
+    if (tanggalMulai && tanggalSelesai) {
+        const params = new URLSearchParams({
+            tanggal_mulai: tanggalMulai,
+            tanggal_selesai: tanggalSelesai
+        });
+        
+        fetch(`/api/print-jurnal?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data.length > 0) {
+                    // Create print window
+                    const printWindow = window.open('', '_blank');
+                    let printContent = `
+                        <html>
+                        <head>
+                            <title>Laporan Jurnal Pembelajaran</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; margin: 20px; }
+                                h1 { text-align: center; color: #333; }
+                                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                                th { background-color: #f2f2f2; font-weight: bold; }
+                                .text-center { text-align: center; }
+                                @media print { body { margin: 0; } }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>LAPORAN JURNAL PEMBELAJARAN</h1>
+                            <h2>MAN Insan Cendekia Kendari</h2>
+                            <p><strong>Periode:</strong> ${tanggalMulai} s/d ${tanggalSelesai}</p>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>No</th>
+                                        <th>Tanggal</th>
+                                        <th>Guru</th>
+                                        <th>Kelas</th>
+                                        <th>Mata Pelajaran</th>
+                                        <th>Materi</th>
+                                        <th>Metode</th>
+                                        <th>Kehadiran</th>
+                                        <th>Catatan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    data.data.forEach((jurnal, index) => {
+                        printContent += `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${jurnal.tanggal}</td>
+                                <td>${jurnal.guru_nama}<br><small>${jurnal.guru_nip}</small></td>
+                                <td>${jurnal.kelas}</td>
+                                <td>${jurnal.mata_pelajaran}</td>
+                                <td>${jurnal.materi}</td>
+                                <td>${jurnal.metode_pembelajaran || '-'}</td>
+                                <td>H: ${jurnal.siswa_hadir}, TH: ${jurnal.siswa_tidak_hadir}</td>
+                                <td>${jurnal.catatan || '-'}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    printContent += `
+                                </tbody>
+                            </table>
+                            <p style="margin-top: 30px;"><strong>Total Jurnal:</strong> ${data.data.length} entries</p>
+                            <p style="margin-top: 50px; text-align: right;">
+                                Kendari, ${new Date().toLocaleDateString('id-ID')}<br><br><br>
+                                Tim Akademik MAN IC Kendari
+                            </p>
+                        </body>
+                        </html>
+                    `;
+                    
+                    printWindow.document.write(printContent);
+                    printWindow.document.close();
+                    printWindow.print();
+                } else {
+                    alert('Tidak ada data jurnal untuk periode tersebut');
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
+    }
+}
 </script>
 {% endblock %}
